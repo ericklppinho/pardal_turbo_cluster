@@ -1,12 +1,11 @@
+process.env.UV_THREADPOOL_SIZE = '' + 4 * require('os').cpus().length;
+
 import os from 'os';
-
-process.env.UV_THREADPOOL_SIZE = '' + 4 * os.cpus.length;
-
 import cluster from 'cluster';
 import http from 'http';
 import express from 'express';
 
-const cpus = os.cpus.length;
+const cpus = os.cpus().length;
 const gc_interval = 60 * 1000;
 const timeout = 60 * 1000;
 

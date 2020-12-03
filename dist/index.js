@@ -3,12 +3,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+process.env.UV_THREADPOOL_SIZE = '' + 4 * require('os').cpus().length;
 const os_1 = __importDefault(require("os"));
-process.env.UV_THREADPOOL_SIZE = '' + 4 * os_1.default.cpus.length;
 const cluster_1 = __importDefault(require("cluster"));
 const http_1 = __importDefault(require("http"));
 const express_1 = __importDefault(require("express"));
-const cpus = os_1.default.cpus.length;
+const cpus = os_1.default.cpus().length;
 const gc_interval = 60 * 1000;
 const timeout = 60 * 1000;
 let port = 3333;
