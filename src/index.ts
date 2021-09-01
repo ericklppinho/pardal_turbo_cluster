@@ -1,31 +1,32 @@
-process.env.UV_THREADPOOL_SIZE = '' + 4 * require('os').cpus().length;
+const port = 3333;
+const cpus = 5;
+const servers_per_worker = 10;
 
-import os from 'os';
+process.env.UV_THREADPOOL_SIZE = '' + 4 * cpus * servers_per_worker;
+
 import cluster from 'cluster';
-import http from 'http';
-import express from 'express';
+import net from 'net';
+import cp, { ChildProcess } from 'child_process';
+import roundrobin from './roundrobin';
 
-const cpus = os.cpus().length;
-const gc_interval = 60 * 1000;
-const timeout = 60 * 1000;
-
-let port = 3333;
+const gc_interval = 30 * 1000;
+const timeout = 30 * 1000;
 
 if (cluster.isMaster) {
     console.log('Master process is running');
 
     cluster.on('online', (worker) => {
-        console.log(`Worker ${worker.id} is online`);
+        console.log(`Worker ${worker.process.pid} is online`);
     });
 
     cluster.on('exit', (worker, code, signal) => {
-        console.log(`Worker ${worker.id} died with code: ${code}, and signal: ${signal}`);
-        console.log(`Respawning worker ${worker.id}`);
+        console.log(`Worker ${worker.process.pid} died with code: ${code}, and signal: ${signal}`);
+        console.log(`Respawning worker ${worker.process.pid}`);
         cluster.fork();
     });
 
     for (let i = 0; i < cpus; i++) {
-        console.log(`Starting a new worker ${i}`);
+        //console.log(`Starting a new worker ${i}`);
         cluster.fork();
     }
 
@@ -35,28 +36,31 @@ if (cluster.isMaster) {
         setInterval(global.gc, gc_interval);
     }
 } else {
-    let app = express();
+    const servers: ChildProcess[] = [];
 
-    app.get('/', (req, res) => {
-        return res.send('Hello World');
+    for (let i = 0; i < servers_per_worker; i++) {
+        servers[i] = cp.fork(`${__dirname}/server.js`);
+
+        servers[i].on('exit', (code, signal) => {
+            console.log(`Server ${servers[i].pid} died with code: ${code}, and signal: ${signal}`);
+            console.log(`Respawning server ${servers[i].pid} from worker ${process.pid}`);
+            servers[i] = cp.fork(`${__dirname}/server.js`);
+        });
+    }
+
+    const nextServer = roundrobin<ChildProcess>(servers);
+
+    var serverOptions = { pauseOnConnect: true };
+
+    const server = net.createServer(serverOptions, (socket) => {
+        socket.setNoDelay();
+        socket.setKeepAlive();
+        socket.setTimeout(timeout);
+
+        nextServer().send('pardal_turbo_server:connection', socket);
     });
 
-    let httpServer = http.createServer(app);
-
-    httpServer.requestTimeout = timeout;
-    httpServer.headersTimeout = timeout;
-    httpServer.timeout = timeout;
-    httpServer.keepAliveTimeout = timeout;
-
-    httpServer.on('connection', (connection) => {
-        connection.setNoDelay();
-        connection.setKeepAlive();
-        //connection.setTimeout(timeout);
-
-        return;
-    });
-
-    httpServer.listen(port, () => {
+    server.listen(port, () => {
         console.log('🚀 Listening on port ' + port);
     });
 }

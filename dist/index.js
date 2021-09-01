@@ -1,55 +1,71 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-process.env.UV_THREADPOOL_SIZE = '' + 4 * require('os').cpus().length;
-const os_1 = __importDefault(require("os"));
-const cluster_1 = __importDefault(require("cluster"));
-const http_1 = __importDefault(require("http"));
-const express_1 = __importDefault(require("express"));
-const cpus = os_1.default.cpus().length;
-const gc_interval = 60 * 1000;
-const timeout = 60 * 1000;
-let port = 3333;
-if (cluster_1.default.isMaster) {
-    console.log('Master process is running');
-    cluster_1.default.on('online', (worker) => {
-        console.log(`Worker ${worker.id} is online`);
+
+var _cluster = _interopRequireDefault(require("cluster"));
+
+var _net = _interopRequireDefault(require("net"));
+
+var _child_process = _interopRequireDefault(require("child_process"));
+
+var _roundrobin = _interopRequireDefault(require("./roundrobin"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+const port = 3333;
+const cpus = 5;
+const servers_per_worker = 10;
+process.env.UV_THREADPOOL_SIZE = '' + 4 * cpus * servers_per_worker;
+const gc_interval = 30 * 1000;
+const timeout = 30 * 1000;
+
+if (_cluster.default.isMaster) {
+  console.log('Master process is running');
+
+  _cluster.default.on('online', worker => {
+    console.log(`Worker ${worker.process.pid} is online`);
+  });
+
+  _cluster.default.on('exit', (worker, code, signal) => {
+    console.log(`Worker ${worker.process.pid} died with code: ${code}, and signal: ${signal}`);
+    console.log(`Respawning worker ${worker.process.pid}`);
+
+    _cluster.default.fork();
+  });
+
+  for (let i = 0; i < cpus; i++) {
+    //console.log(`Starting a new worker ${i}`);
+    _cluster.default.fork();
+  }
+
+  if (!global.gc) {
+    console.log('Garbage collection is not exposed');
+  } else {
+    setInterval(global.gc, gc_interval);
+  }
+} else {
+  const servers = [];
+
+  for (let i = 0; i < servers_per_worker; i++) {
+    servers[i] = _child_process.default.fork(`${__dirname}/server.js`);
+    servers[i].on('exit', (code, signal) => {
+      console.log(`Server ${servers[i].pid} died with code: ${code}, and signal: ${signal}`);
+      console.log(`Respawning server ${servers[i].pid} from worker ${process.pid}`);
+      servers[i] = _child_process.default.fork(`${__dirname}/server.js`);
     });
-    cluster_1.default.on('exit', (worker, code, signal) => {
-        console.log(`Worker ${worker.id} died with code: ${code}, and signal: ${signal}`);
-        console.log(`Respawning worker ${worker.id}`);
-        cluster_1.default.fork();
-    });
-    for (let i = 0; i < cpus; i++) {
-        console.log(`Starting a new worker ${i}`);
-        cluster_1.default.fork();
-    }
-    if (!global.gc) {
-        console.log('Garbage collection is not exposed');
-    }
-    else {
-        setInterval(global.gc, gc_interval);
-    }
-}
-else {
-    let app = express_1.default();
-    app.get('/', (req, res) => {
-        return res.send('Hello World');
-    });
-    let httpServer = http_1.default.createServer(app);
-    httpServer.requestTimeout = timeout;
-    httpServer.headersTimeout = timeout;
-    httpServer.timeout = timeout;
-    httpServer.keepAliveTimeout = timeout;
-    httpServer.on('connection', (connection) => {
-        connection.setNoDelay();
-        connection.setKeepAlive();
-        //connection.setTimeout(timeout);
-        return;
-    });
-    httpServer.listen(port, () => {
-        console.log('🚀 Listening on port ' + port);
-    });
+  }
+
+  const nextServer = (0, _roundrobin.default)(servers);
+  var serverOptions = {
+    pauseOnConnect: true
+  };
+
+  const server = _net.default.createServer(serverOptions, socket => {
+    socket.setNoDelay();
+    socket.setKeepAlive();
+    socket.setTimeout(timeout);
+    nextServer().send('pardal_turbo_server:connection', socket);
+  });
+
+  server.listen(port, () => {
+    console.log('🚀 Listening on port ' + port);
+  });
 }
