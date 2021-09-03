@@ -50,12 +50,13 @@ if (cluster.isMaster) {
 
     const nextServer = roundrobin<ChildProcess>(servers);
 
-    var serverOptions = { pauseOnConnect: true };
-
-    const server = net.createServer(serverOptions, (socket) => {
+    const server = net.createServer({ pauseOnConnect: true }, (socket) => {
         socket.setNoDelay();
         socket.setKeepAlive();
         socket.setTimeout(timeout);
+        socket.on('timeout', () => {
+            socket.end();
+        });
 
         nextServer().send('pardal_turbo_server:connection', socket);
     });

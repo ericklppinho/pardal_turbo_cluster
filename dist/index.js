@@ -2,7 +2,7 @@
 
 var _cluster = _interopRequireDefault(require("cluster"));
 
-var _net = _interopRequireDefault(require("net"));
+var _http = _interopRequireDefault(require("http"));
 
 var _child_process = _interopRequireDefault(require("child_process"));
 
@@ -54,17 +54,18 @@ if (_cluster.default.isMaster) {
   }
 
   const nextServer = (0, _roundrobin.default)(servers);
-  var serverOptions = {
-    pauseOnConnect: true
-  };
+  _http.default.globalAgent.maxFreeSockets = 10000;
+  _http.default.globalAgent.maxSockets = 1000000;
+  _http.default.globalAgent.maxTotalSockets = 1000000;
 
-  const server = _net.default.createServer(serverOptions, socket => {
+  const server = _http.default.createServer();
+
+  server.on('connection', socket => {
+    socket.pause();
     socket.setNoDelay();
     socket.setKeepAlive();
-    socket.setTimeout(timeout);
     nextServer().send('pardal_turbo_server:connection', socket);
   });
-
   server.listen(port, () => {
     console.log('🚀 Listening on port ' + port);
   });
