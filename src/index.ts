@@ -2,7 +2,7 @@ process.env.UV_THREADPOOL_SIZE= '' + 128; // 1-128 or 1-1024 depending of the ve
 
 const port = 3333;
 const cpus = 1;
-const servers_per_worker = 10;
+const servers_per_worker = 5;
 
 import cluster from 'cluster';
 import net from 'net';
