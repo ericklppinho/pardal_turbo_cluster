@@ -11,7 +11,7 @@ app.use(compression());
 app.use(express.json());
 
 app.get('/', async (req, res) => {  // Use async by default
-  return res.send({'Hello': 'World'});
+  return res.send({ 'Hello': 'World' });
 });
 
 const server: http.Server = http.createServer(app);
@@ -21,7 +21,12 @@ server.listen(0, () => {
 });
 
 process.on('message', (type: string, socket: Socket) => {
-  if(type === 'socket') {
+  if (type === 'socket') {
+    socket.setNoDelay();
+    socket.setKeepAlive();
+    socket.on('timeout', () => {
+      socket.end();
+    });
     server.emit('connection', socket);
   }
 });

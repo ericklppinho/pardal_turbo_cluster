@@ -1,18 +1,19 @@
 process.env.UV_THREADPOOL_SIZE= '' + 128; // 1-128 or 1-1024 depending of the version
 
 const port = 3333;
-const cpus = 1;
 const servers_per_worker = 5;
 
 import cluster from 'cluster';
 import net from 'net';
+import os from 'os';
 import child_process, { ChildProcess } from 'child_process';
 import roundrobin from './roundrobin';
 
 const gc_interval = 30 * 1000;
 const connection_timeout = 30 * 1000;
+const cpus = os.cpus().length;
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
     cluster.on('online', (worker) => {
         console.log(`Worker ${worker.process.pid} is online`);
     });
@@ -48,13 +49,7 @@ if (cluster.isMaster) {
     const nextServer = roundrobin<ChildProcess>(servers);
 
     const server = net.createServer({ pauseOnConnect: true }, (socket) => {
-        socket.setNoDelay();
-        socket.setKeepAlive();
         socket.setTimeout(connection_timeout);
-        socket.on('timeout', () => {
-            socket.end();
-        });
-
         nextServer().send('socket', socket);
     });
 

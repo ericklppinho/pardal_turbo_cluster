@@ -13,8 +13,8 @@
   ],
   "scripts": {
     "build": "babel src --extensions \".js,.ts\" --out-dir dist --copy-files",
-    "start:dev": "SET NODE_ENV=production && node --trace-sync-io --nouse-idle-notification --expose-gc --page-promotion-threshold=50 --parallel-compile-tasks --finalize-streaming-on-background --concurrent-inlining --no-flush-bytecode --no-stress-flush-bytecode --reuse-opt-code-count=1000 --enable-one-shot-optimization --always-osr --opt --wasm-opt --prepare-always-opt --always-opt --max-old-space-size=480 --optimize-for-size --fast-promotion-new-space --v8-os-page-size=12 --gc-freelist-strategy=3 --v8-pool-size=0 dist/index.js",
-    "start": "SET NODE_ENV=production && node --nouse-idle-notification --expose-gc --page-promotion-threshold=50 --parallel-compile-tasks --finalize-streaming-on-background --concurrent-inlining --no-flush-bytecode --no-stress-flush-bytecode --reuse-opt-code-count=1000 --enable-one-shot-optimization --always-osr --opt --wasm-opt --prepare-always-opt --always-opt --max-old-space-size=480 --optimize-for-size --fast-promotion-new-space --v8-os-page-size=12 --gc-freelist-strategy=3 --v8-pool-size=0 dist/index.js"
+    "start:dev": "NODE_ENV=production && node --trace-sync-io --nouse-idle-notification --expose-gc --page-promotion-threshold=50 --parallel-compile-tasks --finalize-streaming-on-background --concurrent-inlining --no-flush-bytecode --reuse-opt-code-count=1000 --always-osr --opt --wasm-opt --prepare-always-opt --always-opt --max-old-space-size=480 --optimize-for-size --fast-promotion-new-space --v8-os-page-size=12 --v8-pool-size=0 --tls-min-v1.3 dist/index.js",
+    "start": "NODE_ENV=production && node --nouse-idle-notification --expose-gc --page-promotion-threshold=50 --parallel-compile-tasks --finalize-streaming-on-background --concurrent-inlining --no-flush-bytecode --reuse-opt-code-count=1000 --always-osr --opt --wasm-opt --prepare-always-opt --always-opt --max-old-space-size=480 --optimize-for-size --fast-promotion-new-space --v8-os-page-size=12 --v8-pool-size=0 --tls-min-v1.3 dist/index.js"
   },
   "dependencies": {
     "compression": "^1.7.4",
